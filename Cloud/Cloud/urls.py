@@ -18,13 +18,13 @@ from django.contrib import admin
 from django.urls import path, include
 from django.http import JsonResponse
 from django.http import HttpResponseRedirect
-
+from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path('admin/', admin.site.urls),
 
     path('api/', include('chat.urls')),  # <--- Dòng này rất quan trọng!
-    # Tuỳ chọn: root path trả về welcome message
-    # path('', lambda request: JsonResponse({'message': 'Welcome to the Chat API'})),
+
     path('', lambda request: HttpResponseRedirect('/api/')),
-]
+]+ static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

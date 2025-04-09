@@ -21,6 +21,41 @@ from django.contrib.auth import authenticate, login, logout
 #         })
 #     return Response({'error': 'Chưa đăng nhập'}, status=status.HTTP_401_UNAUTHORIZED)
 
+
+@api_view(['POST'])
+def register_view(request):
+
+    username = request.data.get('username')
+    password =request.data.get('password')
+    email = request.data.get('email')
+    avatar = request.FILES.get('avatar')  # Optional
+
+    if not username or not email:
+        return Response({'error': 'Thiếu username hoặc email'}, status=400)
+
+    # Kiểm tra email đã tồn tại chưa
+    if User.objects.filter(email=email).exists():
+        return Response({'error': 'Email đã được sử dụng'}, status=400)
+
+    if User.objects.filter(email=email).exists():
+        return Response({'error': 'Email đã được sử dụng'}, status=400)
+
+    try:
+        user = User.objects.create_user(username=username, email=email, password=password )
+        if avatar:
+            user.avatar.save(avatar.name, avatar)  # lưu file vào model
+            user.save()
+        avatar_url = request.build_absolute_uri(user.avatar.url) if user.avatar else None
+        return Response({
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'avatar': avatar_url
+        })
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
+
+
 @api_view(['POST'])
 def logout_view(request):
     logout(request)
@@ -28,30 +63,30 @@ def logout_view(request):
 
 @api_view(['POST'])
 def login_view(request):
-    username = request.data.get('username')
     email = request.data.get('email')
-    # avatar = request.data.get('avatar')
+    password = request.data.get('password')
+    username = request.data.get('username') or "no name"
 
-    if not username or not email:
-        return Response({'error': 'Thiếu thông tin username hoặc email'}, status=400)
 
     user = User.objects.filter(email=email).first()
 
     if user:
+        avatar_url = request.build_absolute_uri(user.avatar.url) if user.avatar else None
         return Response({
             'id': user.id,
             'username': user.username,
             'email': user.email,
-            # 'avatar': user.avatar if user.avatar else None
+            'avatar': avatar_url
         })
     else:
         try:
-            new_user = User.objects.create_user(username=username, email=email,  password=None)
+            new_user = User.objects.create_user(username=username, email=email,  password=password )
+            default_avatar_url = request.build_absolute_uri('/media/avatars/default.png')
             return Response({
                 'id': new_user.id,
                 'username': new_user.username,
                 'email': new_user.email,
-                # 'avatar': new_user.avatar if new_user.avatar else None
+                'avatar': default_avatar_url
             })
         except Exception as e:
             return Response({'error': str(e)}, status=500)
@@ -67,7 +102,7 @@ class UserViewSet(viewsets.ModelViewSet):
         if ids:
             ids_list = ids.split(',')
             return User.objects.filter(id__in=ids_list)
-        return self.queryset
+        return User.objects.all()
 
 
 class RoomViewSet(viewsets.ModelViewSet):
