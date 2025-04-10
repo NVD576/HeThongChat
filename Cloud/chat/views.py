@@ -1,4 +1,6 @@
+import os
 
+from django.core.files import File
 # chat/views.py
 from rest_framework import viewsets
 from .models import User, Room, Message
@@ -9,6 +11,8 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate, login, logout
+from django.conf import settings
+
 
 
 # @api_view(['GET'])
@@ -30,15 +34,13 @@ def register_view(request):
     email = request.data.get('email')
     avatar = request.FILES.get('avatar')  # Optional
 
-    if not username or not email:
-        return Response({'error': 'Thiếu username hoặc email'}, status=400)
+    if not password or not email:
+        return Response({'error': 'Thiếu password hoặc email'}, status=400)
 
     # Kiểm tra email đã tồn tại chưa
     if User.objects.filter(email=email).exists():
         return Response({'error': 'Email đã được sử dụng'}, status=400)
 
-    if User.objects.filter(email=email).exists():
-        return Response({'error': 'Email đã được sử dụng'}, status=400)
 
     try:
         user = User.objects.create_user(username=username, email=email, password=password )
@@ -64,29 +66,60 @@ def logout_view(request):
 @api_view(['POST'])
 def login_view(request):
     email = request.data.get('email')
-    password = request.data.get('password')
-    username = request.data.get('username') or "no name"
+    password = request.data.get('password')  # Có thể là None nếu login bằng Google
+    username = request.data.get('username')
 
+    if not email:
+        return Response({'error': 'Thiếu email'}, status=400)
 
-    user = User.objects.filter(email=email).first()
+    try:
+        user = User.objects.get(email=email)
+    except User.DoesNotExist:
+        user = None
 
     if user:
-        avatar_url = request.build_absolute_uri(user.avatar.url) if user.avatar else None
-        return Response({
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'avatar': avatar_url
-        })
-    else:
-        try:
-            new_user = User.objects.create_user(username=username, email=email,  password=password )
-            default_avatar_url = request.build_absolute_uri('/media/avatars/default.png')
+        if password:
+            # Đăng nhập thường
+            if user.check_password(password):
+                avatar_url = request.build_absolute_uri(user.avatar.url) if user.avatar else None
+                return Response({
+                    'id': user.id,
+                    'username': user.username,
+                    'email': user.email,
+                    'avatar': avatar_url
+                })
+            else:
+                return Response({'error': 'Sai mật khẩu'}, status=400)
+        else:
+            # Đăng nhập bằng Google (không có mật khẩu)
+            avatar_url = request.build_absolute_uri(user.avatar.url) if user.avatar else None
             return Response({
-                'id': new_user.id,
-                'username': new_user.username,
-                'email': new_user.email,
-                'avatar': default_avatar_url
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'avatar': avatar_url
+            })
+    else:
+        # Tạo user mới
+        try:
+            user = User.objects.create(username=username, email=email)
+            if password:
+                user.set_password(password)
+            else:
+                user.set_unusable_password()  # Không thể dùng password để login
+            user.save()
+
+            # Thêm avatar mặc định
+            default_avatar_path = os.path.join(settings.MEDIA_ROOT, 'avatars/default.png')
+            if os.path.exists(default_avatar_path):
+                with open(default_avatar_path, 'rb') as f:
+                    user.avatar.save('default.png', File(f), save=True)
+
+            return Response({
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'avatar': request.build_absolute_uri(user.avatar.url) if user.avatar else None
             })
         except Exception as e:
             return Response({'error': str(e)}, status=500)

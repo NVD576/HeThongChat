@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
@@ -16,6 +17,12 @@ class User(AbstractUser):
         related_name='chat_user_permissions',  # Thêm related_name
         blank=True
     )
+    @property
+    def avatar_url(self):
+        if self.avatar:
+            return self.avatar.url
+        # Trả về ảnh mặc định nếu chưa upload avatar
+        return settings.MEDIA_URL + 'avatars/default.png'
     def __str__(self):
         return self.username
 
