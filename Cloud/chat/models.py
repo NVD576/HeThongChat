@@ -1,11 +1,19 @@
 from django.conf import settings
 from django.db import models
 from django.contrib.auth.models import AbstractUser
-
+import os
+import uuid
 # Kế thừa lại user của Django để tùy chỉnh dễ hơn
+
+
+def rename_avatar(instance, filename):
+    ext = filename.split('.')[-1]
+    filename = f"{uuid.uuid4().hex}.{ext}"  # tên ảnh mới duy nhất
+    return os.path.join("avatars/", filename)
+
 class User(AbstractUser):
     # Bạn có thể thêm thêm avatar, bio, hoặc role sau nếu cần
-    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
+    avatar = models.ImageField(upload_to=rename_avatar, null=True, blank=True)
     email = models.EmailField(unique=True)
     groups = models.ManyToManyField(
         'auth.Group',
@@ -22,7 +30,9 @@ class User(AbstractUser):
         if self.avatar:
             return self.avatar.url
         # Trả về ảnh mặc định nếu chưa upload avatar
-        return settings.MEDIA_URL + 'avatars/default.png'
+        return settings.MEDIA_URL + 'avatars/default.jpg'
+
+
     def __str__(self):
         return self.username
 

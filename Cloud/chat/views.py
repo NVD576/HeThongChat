@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import authenticate, login, logout
 from django.conf import settings
-
+from rest_framework.parsers import MultiPartParser, FormParser
 
 
 # @api_view(['GET'])
@@ -28,7 +28,6 @@ from django.conf import settings
 
 @api_view(['POST'])
 def register_view(request):
-
     username = request.data.get('username')
     password =request.data.get('password')
     email = request.data.get('email')
@@ -130,6 +129,7 @@ def login_view(request):
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    parser_classes = [MultiPartParser, FormParser]
     def get_queryset(self):
         ids = self.request.query_params.get('ids')
         if ids:

@@ -8,7 +8,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
-    avatar = serializers.SerializerMethodField()
+    # avatar = serializers.SerializerMethodField()
     class Meta:
         model = User
         fields = ['id','username', 'avatar', 'email']
